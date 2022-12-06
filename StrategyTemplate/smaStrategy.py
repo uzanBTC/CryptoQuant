@@ -170,4 +170,7 @@ if __name__ == '__main__':
     cerebro.broker.setcommission(commission=0.0)
 
     # Run over everything
-    cerebro.run(maxcpus=1)
+    result=cerebro.run(maxcpus=1)
+
+    #print("show result: ", result)
+    #print("shape ratio: ", result[0][0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
