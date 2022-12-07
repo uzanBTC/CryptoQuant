@@ -35,8 +35,8 @@ class SMAStrategy(bt.Strategy):
         self.sma10 = bt.indicators.MovingAverageSimple(self.datas[0], period=10)
         self.sma20 = bt.indicators.MovingAverageSimple(self.datas[0], period=20)
         self.sma40 = bt.indicators.MovingAverageSimple(self.datas[0], period=40)
-        self.volumeNow=self.datas[0].volume
-        self.volumePrev=self.datas[-1].volume
+        self.volumeNow=self.data.volume(0)
+        self.volumePrev=self.data.volume(-1)
 
     '''
     Long:
@@ -48,7 +48,7 @@ class SMAStrategy(bt.Strategy):
 
     def log(self, txt, dt=None):
         ''' Logging function for this strategy'''
-        dt = dt or self.datas[0].datetime.date(0)
+        dt = dt or self.datas[0].datetime.time(0)
         print('%s, %s' % (dt.isoformat(), txt))
 
     def notify_order(self, order):
@@ -90,13 +90,12 @@ class SMAStrategy(bt.Strategy):
 
     def next(self):
         if not self.position:
-            if (self.sma3>self.sma10>self.sma20>self.sma40): #and (self.volumeNow>=1.01*self.volumePrev):
-
+            if (self.dataclose>self.sma3>self.sma10>self.sma20>self.sma40) and (self.volumeNow >= 2 * self.volumePrev):
                 self.buy()
         else:
             if self.sma3<self.sma5:
                 # balance
-                self.close()
+                self.sell()
 
 class MyHLOC(btfeeds.GenericCSVData):
 
@@ -135,8 +134,8 @@ if __name__=='__main__':
     # Set the commission
     cerebro.broker.setcommission(commission=0.0)
 
-    cerebro.adddata(data)
-    #cerebro.resampledata(data,timeframe=bt.TimeFrame.Minutes,compression=1)
+    #cerebro.adddata(data)
+    cerebro.resampledata(data,timeframe=bt.TimeFrame.Minutes,compression=5)
     cerebro.addstrategy(SMAStrategy)
 
     cerebro.run()
