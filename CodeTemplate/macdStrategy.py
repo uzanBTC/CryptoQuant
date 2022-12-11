@@ -7,6 +7,7 @@ import sys  # To find out the script name (in argv[0])
 
 # Import the backtrader platform
 import backtrader as bt
+import backtrader.feeds as btfeeds
 import talib
 
 
@@ -36,13 +37,20 @@ class MACDStrategy(bt.Strategy):
            "signalmatype": bt.talib.MA_Type.EMA
         }
         self.macd = bt.talib.MACDEXT(
-         self.data0.close, **kwargs
+         self.datas[0].close, **kwargs
         )
 
         self.crossover = bt.indicators.CrossOver(self.macd.macd, self.macd.macdsignal, plot=False)
 
-        self.bug_signal = (self.crossover==1)
+        # backtrader构造逻辑运算的方式
+        # 两线都在零轴上方金叉
+        self.above = bt.And(self.macd.macd>0.0, self.macd.macdsignal>0.0)
+
+        self.bug_signal = bt.And(self.above,self.crossover==1)
         self.sell_signal = (self.crossover==-1)
+
+        #self.bug_signal = (self.crossover == 1)
+        #self.sell_signal = (self.crossover == -1)
         # To keep track of Pending orders
         self.order=None
 
@@ -68,6 +76,29 @@ class MACDStrategy(bt.Strategy):
             if self.sell_signal:
                 self.order = self.sell()
 
+class MyHLOC(btfeeds.GenericCSVData):
+
+#datetime: year, month=None, day=None, hour=0, minute=0, second=0,
+#2022-12-01 14:40:00
+#2022-12-07 12:15:00
+#time,open,high,low,close,volume
+  params = (
+    ('fromdate', datetime.datetime(2022,12,1,14,40,0)),
+    ('todate', datetime.datetime(2022,12,7,12,15,0)),
+    ('nullvalue', 0.0),
+    ('dtformat', ('%Y-%m-%d %H:%M:%S')),
+    ('tmformat', ('%Y-%m-%d %H:%M:%S')),
+    ('timeframe',bt.TimeFrame.Minutes),
+    ('compression', 5),
+    ('datetime', 0),
+    ('time', -1),
+    ('open', 1),
+    ('high', 2),
+    ('low', 3),
+    ('close', 4),
+    ('volume', 5),
+    ('openinterest', -1),
+)
 
 if __name__ == '__main__':
     # Create a cerebro entity
@@ -85,17 +116,26 @@ if __name__ == '__main__':
 
     # Create a Data Feed
     # Parses pre-downloaded Yahoo CSV Data Feeds (or locally generated if they comply to the Yahoo format
-    data = bt.feeds.YahooFinanceCSVData(
+    dataTSL = bt.feeds.YahooFinanceCSVData(
         dataname=datapath,
         # Do not pass values before this date
         fromdate=datetime.datetime(2018, 1, 1),
         # Do not pass values before this date
-        todate=datetime.datetime(2020, 12, 31),
+        todate=datetime.datetime(2021, 8, 6),
         # Do not pass values after this date
-        reverse=False)
+        reverse=False,
+        timeframe=bt.TimeFrame.Days
+        )
 
     # Add the Data Feed to Cerebro
-    cerebro.adddata(data)
+
+    data = MyHLOC(dataname='../data/backtesting.csv')
+
+    cerebro.adddata(dataTSL, name="TSLA")
+    cerebro.adddata(data, name="BTC")
+    #cerebro.resampledata(data, name="5m", timeframe=bt.TimeFrame.Minutes,compression=5)
+    #cerebro.resampledata(data, name="15m",timeframe=bt.TimeFrame.Minutes,compression=15)
+
     cerebro.broker.setcash(10000.0)
 
     # Set the commission
