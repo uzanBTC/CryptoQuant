@@ -100,6 +100,18 @@ class MyHLOC(btfeeds.GenericCSVData):
     ('openinterest', -1),
 )
 
+def yahooData():
+    return bt.feeds.YahooFinanceCSVData(
+        dataname=datapath,
+        # Do not pass values before this date
+        fromdate=datetime.datetime(2018, 1, 1),
+        # Do not pass values before this date
+        todate=datetime.datetime(2021, 8, 6),
+        # Do not pass values after this date
+        reverse=False,
+        timeframe=bt.TimeFrame.Days
+        )
+
 if __name__ == '__main__':
     # Create a cerebro entity
     cerebro = bt.Cerebro()
@@ -116,16 +128,7 @@ if __name__ == '__main__':
 
     # Create a Data Feed
     # Parses pre-downloaded Yahoo CSV Data Feeds (or locally generated if they comply to the Yahoo format
-    dataTSL = bt.feeds.YahooFinanceCSVData(
-        dataname=datapath,
-        # Do not pass values before this date
-        fromdate=datetime.datetime(2018, 1, 1),
-        # Do not pass values before this date
-        todate=datetime.datetime(2021, 8, 6),
-        # Do not pass values after this date
-        reverse=False,
-        timeframe=bt.TimeFrame.Days
-        )
+    dataTSL = yahooData()
 
     # Add the Data Feed to Cerebro
 
