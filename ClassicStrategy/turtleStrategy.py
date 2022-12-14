@@ -11,6 +11,8 @@ from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['SimHei']
 mpl.rcParams['axes.unicode_minus'] = False
 
+import warnings
+import pyfolio as pf
 
 class TurtleStrategy(bt.Strategy):
     # 默认参数
@@ -158,7 +160,29 @@ def run(code, long_list, short_list, start, end='', startcash=1000000, com=0.000
     # 设置买入设置，策略，数量
     cerebro.addsizer(TradeSizer)
     print('期初总资金: %.2f' % cerebro.broker.getvalue())
+
+    # Add pyfolio as analyzer
+    #cerebro.addanalyzer(bt.analyzers.PyFolio)
+
     cerebro.run(maxcpus=1)
+
+
+''' # Print pyfolio result
+    # if optstrategy is used, the 'run' method will return a list of lists.
+    pyfoliozer = results[0][0].analyzers.getbyname('pyfolio')
+    returns, positions, transactions, gross_lev = pyfoliozer.get_pf_items()
+
+    warnings.filterwarnings("ignore")
+
+    pf.create_returns_tear_sheet(
+        returns,
+        positions=positions,
+        transactions=transactions,
+        live_start_date='2010-01-01'
+    )
+
+    #pf.plot_drawdown_periods(data)
+    plt.show() '''
 
 
 if __name__ == "__main__":
