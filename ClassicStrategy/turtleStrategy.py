@@ -5,7 +5,6 @@ import matplotlib
 import pandas as pd
 import tushare as ts
 import matplotlib.pyplot as plt
-
 from pylab import mpl
 
 mpl.rcParams['font.sans-serif'] = ['SimHei']
@@ -139,10 +138,12 @@ def plot_stock(code, title, start, end):
     plt.show()
 
 
-def run(code, long_list, short_list, start, end='', startcash=1000000, com=0.0005):
+
+def run(code, start, end='', startcash=1000000, com=0.0005):
     cerebro = bt.Cerebro()
     # 导入策略参数寻优
-    cerebro.optstrategy(TurtleStrategy, long_period=long_list, short_period=short_list)
+    # cerebro.optstrategy(TurtleStrategy, long_period=long_list, short_period=short_list)
+    cerebro.addstrategy(TurtleStrategy)
     # 获取数据
     df = ts.get_k_data(code, autype='qfq', start=start, end=end)
     df.index = pd.to_datetime(df.date)
@@ -153,6 +154,7 @@ def run(code, long_list, short_list, start, end='', startcash=1000000, com=0.000
 
     # 将数据加载至回测系统
     data = bt.feeds.PandasData(dataname=df)
+
     cerebro.adddata(data)
     # broker设置资金、手续费
     cerebro.broker.setcash(startcash)
@@ -164,28 +166,17 @@ def run(code, long_list, short_list, start, end='', startcash=1000000, com=0.000
     # Add pyfolio as analyzer
     #cerebro.addanalyzer(bt.analyzers.PyFolio)
 
-    cerebro.run(maxcpus=1)
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
 
+    result = cerebro.run()
 
-''' # Print pyfolio result
-    # if optstrategy is used, the 'run' method will return a list of lists.
-    pyfoliozer = results[0][0].analyzers.getbyname('pyfolio')
-    returns, positions, transactions, gross_lev = pyfoliozer.get_pf_items()
-
-    warnings.filterwarnings("ignore")
-
-    pf.create_returns_tear_sheet(
-        returns,
-        positions=positions,
-        transactions=transactions,
-        live_start_date='2010-01-01'
-    )
-
-    #pf.plot_drawdown_periods(data)
-    plt.show() '''
+    print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
+    print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
 
 
 if __name__ == "__main__":
-    long_list = range(20, 70, 5)
-    short_list = range(5, 20, 5)
-    run('sh', long_list, short_list, '2010-01-01', '2020-07-17')
+    run('sh', '2010-01-01', '2020-07-17')
+
+
+
