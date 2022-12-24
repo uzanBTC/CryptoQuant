@@ -7,17 +7,19 @@ import tushare as ts
 import matplotlib.pyplot as plt
 from pylab import mpl
 
+from Indicators.ChandelierExit import ChandelierExit
+
 mpl.rcParams['font.sans-serif'] = ['SimHei']
 mpl.rcParams['axes.unicode_minus'] = False
 
-import warnings
-import pyfolio as pf
 
-class TurtleStrategy(bt.Strategy):
+class ATRVegasStrategy(bt.Strategy):
     # 默认参数
     params = (
-        ('long_period', 20),
-        ('short_period', 10),
+        ('atr_long_period', 20),
+        ('atr_short_period', 10),
+        ('chan_period', 4),
+        ('stop_loss_multip',3),
         ('printlog', False),
     )
 
@@ -26,37 +28,55 @@ class TurtleStrategy(bt.Strategy):
         self.buyprice = 0
         self.buycomm = 0
         self.buy_size = 0
-        self.buy_count = 0
-        # 海龟交易法则中的唐奇安通道和平均波幅ATR
-        self.H_line = bt.indicators.Highest(self.data.high(-1), period=self.p.long_period)
-        self.L_line = bt.indicators.Lowest(self.data.low(-1), period=self.p.short_period)
+        self.bar_count_after_buy = 0
+
+        # channel for trend indicating
+        # for long
+        self.H_line = bt.indicators.Highest(self.data.close(-1), period=self.p.chan_period)
+        # for short
+        self.L_line = bt.indicators.Lowest(self.data.close(-1), period=self.p.chan_period)
+
         # 每bar真实波动率
         self.TR = bt.indicators.Max((self.data.high(0) - self.data.low(0)),
                                     abs(self.data.close(-1) - self.data.high(0)),
                                     abs(self.data.close(-1) - self.data.low(0)))
 
         # 平均真实波动率
-        self.ATR = bt.indicators.MovingAverageSimple(self.TR, period=14)
+        self.atr_long_term = bt.indicators.MovingAverageSimple(self.TR, period=self.p.atr_long_period)
+        self.atr_short_term = bt.indicators.MovingAverageSimple(self.TR, period=self.p.atr_short_period)
 
-        # 价格与上下轨道的突破
-        self.buy_signal = bt.ind.CrossOver(self.data.close(0), self.H_line)
-        self.sell_signal = bt.ind.CrossOver(self.data.close(0), self.L_line)
+        # Vegas Tunnel
+        self.vegas_short = bt.indicators.ExponentialMovingAverage(self.data.close,period=144)
+        self.vegas_long = bt.indicators.ExponentialMovingAverage(self.data.close,period=169)
+
+        # 轨道突破
+        self.chan_signal_long = bt.ind.CrossUp(self.close(0), self.H_line)
+        self.chan_signal_short = bt.ind.CrossDown(self.data.close(0), self.L_line)
+
+        # atr 突破
+        self.atr_signal = (self.atr_short_term / self.atr_long_term) >= self.atr_ratio
+
+        self.long_signal = bt.ind.And(self.chan_signal_long > 0, self.atr_signal)
+        self.short_signal = bt.ind.And(self.chan_signal_short > 0, self.atr_signal)
+
+
+        # chandelier stop loss
+        self.stop_loss = ChandelierExit(self.data,period=22,multip=3)
+
 
     # 一個iterator，不斷地去迭代指向一格一格的時間
     def next(self):
         if self.order:
             return
-        if self.buy_signal > 0 and self.buy_count == 0:
-            #头寸规模
-            self.sizer.p.stake = 60
+        # 没有仓位的时候发现买入信号，买入
+        if not self.position and self.long_signal:
+            self.sizer.p.stake = 90
             self.order = self.buy()
-        # 先假设不加倉
-        # 离场： 价格跌破下轨且持仓时
-        elif self.sell_signal < 0 and self.buy_count > 0:
-            self.order = self.sell()
-            self.buy_count = 0
-        # 止损： 价格跌破买入价的2个ATR且持仓时
-        elif self.data.close < (self.buyprice - 2 * self.ATR[0]) and self.buy_count > 0:
+        # 多头移动止损： 价格跌破吊灯下轨且持仓时
+        elif self.data.close < self.stop_loss.long and self.position > 0:
+            self.order = self.close()
+        # 多头固定止损： 价格跌破买入价的2个ATR且持仓时
+        elif self.data.close < (self.buyprice - 2 * self.atr_long_term) and self.position > 0:
             self.order = self.sell()
             self.buy_count = 0
 
@@ -101,9 +121,11 @@ class TurtleStrategy(bt.Strategy):
     def stop(self):
         self.log(f'(组合线：{self.p.long_period},{self.p.short_period})；期末总资金: {self.broker.getvalue():.2f}', doprint=True)
 
+
 # 由于交易过程中需要对仓位进行动态调整，每次交易一单元股票（不是固定的一股或100股，根据ATR而定），因此交易头寸需要重新设定
 class TradeSizer(bt.Sizer):
     params = (('stake', 1),)
+
     def _getsizing(self, comminfo, cash, data, isbuy):
         # isbuy==True，买场景，这时候需要传入用ATR计算的头寸
         if isbuy:
@@ -114,59 +136,3 @@ class TradeSizer(bt.Sizer):
             return 0
         else:
             return position.size
-
-
-def plot_stock(code, title, start, end):
-    dd = ts.get_k_data(code, autype='qfq', start=start, end=end)
-    dd.index = pd.to_datetime(dd.date)
-    dd.close.plot(figsize=(14, 6), color='r')
-    plt.title(title + '价格走势\n' + start + ':' + end, size=15)
-    plt.annotate(f'期间累计涨幅:{(dd.close[-1] / dd.close[0] - 1) * 100:.2f}%', xy=(dd.index[-150], dd.close.mean()),
-                 xytext=(dd.index[-500], dd.close.min()), bbox=dict(boxstyle='round,pad=0.5',
-                                                                    fc='yellow', alpha=0.5),
-                 arrowprops=dict(facecolor='green', shrink=0.05), fontsize=12)
-    plt.show()
-
-
-
-def run(code, start, end='', startcash=1000000, com=0.0005):
-    cerebro = bt.Cerebro()
-    # 导入策略参数寻优
-    # cerebro.optstrategy(TurtleStrategy, long_period=long_list, short_period=short_list)
-    cerebro.addstrategy(TurtleStrategy)
-    # 获取数据
-    df = ts.get_k_data(code, autype='qfq', start=start, end=end)
-    df.index = pd.to_datetime(df.date)
-    df = df[['open', 'high', 'low', 'close', 'volume']]
-
-    print("===")
-    print(df)
-
-    # 将数据加载至回测系统
-    data = bt.feeds.PandasData(dataname=df)
-
-    cerebro.adddata(data)
-    # broker设置资金、手续费
-    cerebro.broker.setcash(startcash)
-    cerebro.broker.setcommission(commission=com)
-    # 设置买入设置，策略，数量
-    cerebro.addsizer(TradeSizer)
-    print('期初总资金: %.2f' % cerebro.broker.getvalue())
-
-    # Add pyfolio as analyzer
-    #cerebro.addanalyzer(bt.analyzers.PyFolio)
-
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
-
-    result = cerebro.run()
-
-    print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
-    print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
-
-
-if __name__ == "__main__":
-    run('sh', '2010-01-01', '2020-07-17')
-
-
-

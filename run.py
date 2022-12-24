@@ -1,29 +1,33 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri May  8 09:29:01 2020
-
-@author: zhangjinyi
-"""
 from datetime import datetime
 import os
 from collections import OrderedDict
 import backtrader as bt
 import pandas as pd
 import plotly.graph_objs as go
-from dash import Dash, html, dcc,dash_table
+from dash import Dash, html, dcc, dash_table
 from jupyter_plotly_dash import JupyterDash
 from openpyxl import load_workbook
 
 from ClassicStrategy.turtleStrategy import TradeSizer, TurtleStrategy
 from Performance.TotalValue import TotalValue
 
+import backtrader as bt
+import matplotlib
+import pandas as pd
+import tushare as ts
+import matplotlib.pyplot as plt
+from pyecharts.charts import Line, Bar
+from pylab import mpl
+
 '''
 Note:
 If you only have 1 year of data and taking into account that the default timeframe for the calculation is years, no calculation can take place. Sharpe needs at least 2 samples for the given timeframe, to calculate the variance.
 '''
 
+
 def add_analyzers(cerebro):
-    #cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
+    # cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
     cerebro.addanalyzer(TotalValue, _name='_TotalValue')
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='_AnnualReturn')
     cerebro.addanalyzer(bt.analyzers.Calmar, _name='_Calmar')
@@ -42,6 +46,7 @@ def add_analyzers(cerebro):
     cerebro.addanalyzer(bt.analyzers.Transactions, _name='_Transactions')
     cerebro.addanalyzer(bt.analyzers.VWR, _name='_VWR')
 
+
 def out_result(strategy, data, sizer, startcash=1000000.0, commission=0.001):
     cerebro = bt.Cerebro()
     cerebro.addstrategy(strategy)
@@ -51,8 +56,8 @@ def out_result(strategy, data, sizer, startcash=1000000.0, commission=0.001):
     cerebro.addsizer(sizer)
 
     add_analyzers(cerebro)
-    results = cerebro.run()
 
+    results = cerebro.run()
 
     performance_dict = OrderedDict()
     calmar_ratio = list(results[0].analyzers._Calmar.get_analysis().values())[-1]
@@ -77,7 +82,7 @@ def out_result(strategy, data, sizer, startcash=1000000.0, commission=0.001):
     vwr_ratio = VWR_info['vwr']
 
     sharpe_info = results[0].analyzers._SharpeRatio.get_analysis()
-    #sharpe_info=results[0].analyzers._SharpeRatio_A.get_analysis()
+    # sharpe_info=results[0].analyzers._SharpeRatio_A.get_analysis()
     print(sharpe_info)
     sharpe_ratio = sharpe_info['sharperatio']
 
@@ -215,8 +220,8 @@ def out_result(strategy, data, sizer, startcash=1000000.0, commission=0.001):
     df_total_position_value = pd.DataFrame(results[0].analyzers._PositionsValue.get_analysis()).T
     df_total_position_value['total_position_value'] = df_total_position_value.sum(axis=1)
 
-    #pyfoliozer = results[0].analyzers.getbyname('pyfolio')
-    #returns, positions, transactions, gross_lev = pyfoliozer.get_pf_items()
+    # pyfoliozer = results[0].analyzers.getbyname('pyfolio')
+    # returns, positions, transactions, gross_lev = pyfoliozer.get_pf_items()
     return df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate, df_total_position_value
 
 
@@ -248,30 +253,33 @@ def create_table(df):
     )
 
 
-def plot_result(strategy, data,sizer, startcash=100000, commission=0.001):
-    #df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate, df_total_position_value = out_result(strategy, data, sizer, startcash=startcash, commission=commission)
-    df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate, df_total_position_value = out_result(strategy, data, sizer, startcash=startcash, commission=commission)
-    save_df_to_excel(df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate, df_total_position_value)
+def plot_result(strategy, data, sizer, startcash=100000, commission=0.001):
+    # df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate, df_total_position_value = out_result(strategy, data, sizer, startcash=startcash, commission=commission)
+    df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate, df_total_position_value = out_result(
+        strategy, data, sizer, startcash=startcash, commission=commission)
+    save_df_to_excel(df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate,
+                     df_total_position_value)
+    print("-------")
+    print(df_ratio_overview)
     return performance_dt_to_dash(df_ratio_overview, df_total_value, df_year_rate,
-                           df_total_position_value)
+                                  df_total_position_value)
 
 
-def save_df_to_excel(df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate, df_total_position_value):
-    report_path="performance-output-"+datetime.now().strftime("%Y%m%d-%H%M%S")
+def save_df_to_excel(df_ratio_overview, df_total_value, df_gross_leverage, df_log_return, df_year_rate,
+                     df_total_position_value):
+    report_path = "performance-output-" + datetime.now().strftime("%Y%m%d-%H%M%S")
     if not os.path.exists(report_path):
         os.makedirs(report_path)
 
-    path=os.path.join(report_path,'system_performance_data.xlsx')
+    path = os.path.join(report_path, 'system_performance_data.xlsx')
 
-    writer = pd.ExcelWriter(path, engine='openpyxl',mode='w')
-
+    writer = pd.ExcelWriter(path, engine='openpyxl', mode='w')
 
     df_ratio_overview.to_excel(writer,
                                sheet_name="df_ratio_overview")
 
     df_total_value.to_excel(writer,
                             sheet_name="df_total_value")
-
 
     df_year_rate.to_excel(writer,
                           sheet_name="df_year_rate")
@@ -281,8 +289,20 @@ def save_df_to_excel(df_ratio_overview, df_total_value, df_gross_leverage, df_lo
     writer.close()
 
 
+def excel_to_performance_data(path):
+    df_sheet_overview = pd.read_excel(path, sheet_name="df_ratio_overview")
+
+    df_total_value = pd.read_excel(path, sheet_name="df_total_value")
+
+    df_year_rate = pd.read_excel(path, sheet_name="df_year_rate")
+
+    df_total_position_value = pd.read_excel(path, sheet_name="df_total_position_value")
+
+    return df_sheet_overview.iloc[:, 1:], df_total_value.iloc[:, 1:], df_year_rate.iloc[:, 1:], df_total_position_value.iloc[:, 2:]
+
+
 def performance_dt_to_dash(df_ratio_overview, df_total_value, df_year_rate, df_total_position_value):
-    #app = dash('评价指标')
+    # app = dash('评价指标')
     app = Dash(__name__)
     colors = dict(background='white', text='black')
     strategy_name = "量化策略"
@@ -313,7 +333,8 @@ def performance_dt_to_dash(df_ratio_overview, df_total_value, df_year_rate, df_t
             dcc.Graph(
                 id='持仓市值',
                 figure=dict(
-                    data=[{'x': list(df_total_position_value.index), 'y': list(df_total_position_value.total_position_value),
+                    data=[{'x': list(df_total_position_value.index),
+                           'y': list(df_total_position_value.total_position_value),
                            # 'text':[int(i*1000)/10 for i in list(df3.year_rate)],
                            'type': 'scatter', 'name': '持仓市值',
                            'textposition': "outside"}],
@@ -348,22 +369,7 @@ def performance_dt_to_dash(df_ratio_overview, df_total_value, df_year_rate, df_t
     return app
 
 
-
-
-
-
-
-import backtrader as bt
-import matplotlib
-import pandas as pd
-import tushare as ts
-import matplotlib.pyplot as plt
-from pyecharts.charts import Line,Bar
-from pylab import mpl
-
-
-
-def performance(code,long,short,start,end,startcash,com):
+def performance(code, long, short, start, end, startcash, com):
     df = ts.get_k_data(code, autype='qfq', start=start, end=end)
     df.index = pd.to_datetime(df.date)
     df = df[['open', 'high', 'low', 'close', 'volume']]
@@ -371,34 +377,40 @@ def performance(code,long,short,start,end,startcash,com):
     print(df)
     # 将数据加载至回测系统
     data = bt.feeds.PandasData(dataname=df)
-    app=plot_result(TurtleStrategy,data,TradeSizer,startcash,com)
+    app = plot_result(TurtleStrategy, data, TradeSizer, startcash, com)
     return app
 
-
-def plot_result_py(data,v,title,plot_type='line',zoom=False):
-    att=data.index
+'''
+def plot_result_py(data, v, title, plot_type='line', zoom=False):
+    att = data.index
     try:
-        attr=att.strftime('%Y%m%d')
+        attr = att.strftime('%Y%m%d')
     except:
-        attr=att
-    if plot_type=='line':
-        p=Line(title)
-        p.add('',attr,list(data[v].round(2)),
-         is_symbol_show=False,line_width=2,
-        is_datazoom_show=zoom,is_splitline_show=True)
+        attr = att
+    if plot_type == 'line':
+        p = Line(title)
+        p.add('', attr, list(data[v].round(2)),
+              is_symbol_show=False, line_width=2,
+              is_datazoom_show=zoom, is_splitline_show=True)
     else:
-        p=Bar(title)
-        p.add('',attr,[int(i*1000)/10 for i in list(data[v])],
+        p = Bar(title)
+        p.add('', attr, [int(i * 1000) / 10 for i in list(data[v])],
               is_label_show=True,
-        is_datazoom_show=zoom,is_splitline_show=True)
+              is_datazoom_show=zoom, is_splitline_show=True)
     return p
-
-
+'''
 
 if __name__ == "__main__":
-    #long_list = range(20, 70, 5)
-    #short_list = range(5, 20, 5)
-    #run('sh', long_list, short_list, '2010-01-01', '2020-07-17')
-    #p_plot.out_result(TurtleStrategy)
-    app = performance('sh', 50, 5, '2010-01-01', '2021-07-17', 10000000, 0.001)
-    app.run_server(debug=False)
+    # long_list = range(20, 70, 5)
+    # short_list = range(5, 20, 5)
+    # run('sh', long_list, short_list, '2010-01-01', '2020-07-17')
+    # p_plot.out_result(TurtleStrategy)
+    # app = performance('sh', 50, 5, '2010-01-01', '2021-07-17', 10000000, 0.001)
+    # app.run_server(debug=False)
+    '''print("========")
+    path = "performance-output-20221223-114248/system_performance_data.xlsx"
+    d1, d2, d3, d4 = excel_to_performance_data(path)
+    print(d4)
+    app = performance_dt_to_dash(d1,d2,d3,d4)
+    app.run_server(debug=False)'''
+    plot_result_py()
