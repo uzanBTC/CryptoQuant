@@ -48,15 +48,13 @@ Format used to parse the time CSV field if “present” (the default for the �
 
 class MyHLOC(btfeeds.GenericCSVData):
 
-#datetime: year, month=None, day=None, hour=0, minute=0, second=0,
-#2022-12-01 14:40:00
-#2022-12-07 12:15:00
+#2017-08-17 08:00:00
   params = (
-    ('fromdate', datetime.datetime(2022,12,1,14,40)),
-    ('todate', datetime.datetime(2022,12,7,12,15)),
+    ('fromdate', datetime.datetime(2017,8,17)),
+    ('todate', datetime.datetime(2022,12,25)),
     ('nullvalue', 0.0),
-    ('dtformat', '%Y-%m-%d %H:%M:%S'),
-    ('tmformat', '%Y-%m-%d %H:%M:%S'),
+    ('dtformat', '%Y-%m-%d'),
+    ('tmformat', '%Y-%m-%d'),
     ('datetime', 0),
     ('time', 1),
     ('high', 2),
@@ -78,7 +76,7 @@ def csvTimeUnixToDatetime(csv_path, time_column):
     dt_list.append(dateTimeConvertor(row[time_column]))
 
   df[time_column]=dt_list
-  df.to_csv("../data/backtesting.csv", index=False)
+  df.to_csv("data/backtesting.csv", index=False)
   print(df[time_column])
 
 
@@ -86,6 +84,6 @@ if __name__=="__main__":
     data = MyHLOC(dataname='../data/backtesting.csv')
     print(data.params)
     #print(dateTimeConvertor(1669876800))
-    #csvTimeUnixToDatetime("../data/BINANCE ETHUSDT, 5.csv","time")
+    #csvTimeUnixToDatetime("data/BINANCE_BTCUSDT, 1D.csv","time")
 
 

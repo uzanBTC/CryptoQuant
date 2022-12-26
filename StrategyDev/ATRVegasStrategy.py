@@ -6,35 +6,33 @@ import pandas as pd
 import tushare as ts
 import matplotlib.pyplot as plt
 from pylab import mpl
-
-from Indicators.ChandelierExit import ChandelierExit
+import datetime as dt
 
 mpl.rcParams['font.sans-serif'] = ['SimHei']
 mpl.rcParams['axes.unicode_minus'] = False
 
-
 class ATRVegasStrategy(bt.Strategy):
     # 默认参数
     params = (
-        ('atr_long_period', 20),
-        ('atr_short_period', 10),
-        ('chan_period', 4),
-        ('stop_loss_multip',3),
+        ('atr_long_period',21),
+        ('atr_short_period', 3),
+        ('atr_ratio', 1.382),
         ('printlog', False),
+        ('close_when_stop',True),
     )
 
     def __init__(self):
-        self.order = None
-        self.buyprice = 0
-        self.buycomm = 0
-        self.buy_size = 0
-        self.bar_count_after_buy = 0
+        self.big_int=10000000000
 
-        # channel for trend indicating
-        # for long
-        self.H_line = bt.indicators.Highest(self.data.close(-1), period=self.p.chan_period)
-        # for short
-        self.L_line = bt.indicators.Lowest(self.data.close(-1), period=self.p.chan_period)
+
+        self.buyprice = 0
+        self.sellprice=self.big_int
+        self.buycomm = 0
+        self.atr_ratio = self.p.atr_ratio
+        self.high_after_buy=0
+        self.low_after_sell=self.big_int
+        # -1: 空单持有  0：无持仓   1：多单持有
+        self.order=0
 
         # 每bar真实波动率
         self.TR = bt.indicators.Max((self.data.high(0) - self.data.low(0)),
@@ -46,39 +44,68 @@ class ATRVegasStrategy(bt.Strategy):
         self.atr_short_term = bt.indicators.MovingAverageSimple(self.TR, period=self.p.atr_short_period)
 
         # Vegas Tunnel
-        self.vegas_short = bt.indicators.ExponentialMovingAverage(self.data.close,period=144)
-        self.vegas_long = bt.indicators.ExponentialMovingAverage(self.data.close,period=169)
+        self.vegas_quick = bt.indicators.ExponentialMovingAverage(self.data.close, period=144)
+        self.vegas_slow = bt.indicators.ExponentialMovingAverage(self.data.close, period=169)
 
-        # 轨道突破
-        self.chan_signal_long = bt.ind.CrossUp(self.close(0), self.H_line)
-        self.chan_signal_short = bt.ind.CrossDown(self.data.close(0), self.L_line)
+        self.vegas_long_cond = bt.ind.And(self.data.close > self.vegas_quick, self.vegas_quick > self.vegas_slow)
+        self.vegas_short_cond= bt.ind.And(self.data.close < self.vegas_quick, self.vegas_quick < self.vegas_slow)
+
+        # 向上突破还是向下突破
+        self.isUp = self.data.close(0) > self.data.close(-1)
+        self.isDown = self.data.close(0) < self.data.close(-1)
 
         # atr 突破
-        self.atr_signal = (self.atr_short_term / self.atr_long_term) >= self.atr_ratio
-
-        self.long_signal = bt.ind.And(self.chan_signal_long > 0, self.atr_signal)
-        self.short_signal = bt.ind.And(self.chan_signal_short > 0, self.atr_signal)
-
+        self.atr_signal = bt.ind.CrossOver(self.atr_short_term,self.atr_long_term*self.atr_ratio)
 
         # chandelier stop loss
-        self.stop_loss = ChandelierExit(self.data,period=22,multip=3)
-
 
     # 一個iterator，不斷地去迭代指向一格一格的時間
     def next(self):
-        if self.order:
-            return
-        # 没有仓位的时候发现买入信号，买入
-        if not self.position and self.long_signal:
-            self.sizer.p.stake = 90
-            self.order = self.buy()
-        # 多头移动止损： 价格跌破吊灯下轨且持仓时
-        elif self.data.close < self.stop_loss.long and self.position > 0:
-            self.order = self.close()
-        # 多头固定止损： 价格跌破买入价的2个ATR且持仓时
-        elif self.data.close < (self.buyprice - 2 * self.atr_long_term) and self.position > 0:
-            self.order = self.sell()
-            self.buy_count = 0
+        if self.order==0:
+            # 没有仓位的时候发现买入信号，买入
+            if self.isUp[0]==True and self.vegas_long_cond[0]==True and self.atr_signal>0:  # and self.chan_signal_long > 0:  # self.atr_signal(0)==True and  (not self.position) and
+                self.buy()
+                self.buyprice=self.data.close[0]
+                self.high_after_buy=self.data.close[0]
+                self.order=1
+            # 空单条件
+            elif self.isDown[0]==False and self.vegas_short_cond[0]==True and self.atr_signal>0:
+                self.sell()
+                self.sellprice=self.data.close[0]
+                self.low_after_sell=self.data.close[0]
+                self.order=-1
+        # 多头持仓
+        elif self.order==1:
+            # 多头移动止损： 价格跌破吊灯下轨且持仓时
+            if self.data.close < self.high_after_buy-3*self.atr_long_term and self.position:
+                self.close()
+                self.buyprice =0
+                self.high_after_buy=0
+                self.order = 0
+            # 多头固定止损： 价格跌破买入价的2个ATR且持仓时
+            elif self.data.close < (self.buyprice - 3 * self.atr_long_term) and self.position:
+                self.close()
+                self.buyprice =0
+                self.high_after_buy=0
+                self.order = 0
+            else:
+                self.high_after_buy=max(self.high_after_buy,self.data.close[0])
+        # 空头持仓
+        else:
+            # 空头移动止损： 价格涨破吊灯下轨且持仓时
+            if self.data.close > self.low_after_sell + 3 * self.atr_long_term and self.position:
+                self.close()
+                self.sellprice = self.big_int
+                self.low_after_sell = self.big_int
+                self.order = 0
+            # 空头固定止损： 价格跌破买入价的3个ATR且持仓时
+            elif self.data.close > (self.sellprice + 3 * self.atr_long_term) and self.position:
+                self.close()
+                self.sellprice = self.big_int
+                self.low_after_sell = self.big_int
+                self.order = 0
+            else:
+                self.low_after_sell = min(self.low_after_sell, self.data.close[0])
 
     # 交易记录日志（默认不打印结果）
     def log(self, txt, dt=None, doprint=False):
@@ -109,17 +136,16 @@ class ATRVegasStrategy(bt.Strategy):
             # 如果指令取消/交易失败, 报告结果
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.log('交易失败')
-        self.order = None
 
     # 记录交易收益情况（默认不输出结果）
     def notify_trade(self, trade):
         if not trade.isclosed:
             return
-        self.log(f'(组合线: {self.p.long_period},{self.p.short_period}); '
+        self.log(f'(组合线: {self.p.atr_long_period},{self.p.atr_short_period}); '
                  f'期末总资金: {self.broker.getvalue():.2f}', doprint=False)
 
     def stop(self):
-        self.log(f'(组合线：{self.p.long_period},{self.p.short_period})；期末总资金: {self.broker.getvalue():.2f}', doprint=True)
+        self.log(f'(组合线：{self.p.atr_long_period},{self.p.atr_short_period})；期末总资金: {self.broker.getvalue():.2f}', doprint=True)
 
 
 # 由于交易过程中需要对仓位进行动态调整，每次交易一单元股票（不是固定的一股或100股，根据ATR而定），因此交易头寸需要重新设定
@@ -136,3 +162,86 @@ class TradeSizer(bt.Sizer):
             return 0
         else:
             return position.size
+
+
+def convert_csv_to_dataframe(csv_path):
+    dataframe = pd.read_csv(csv_path)
+    dataframe['time'] = pd.to_datetime(dataframe['time'])
+    dataframe.set_index('time', inplace=True)
+    return dataframe
+
+
+def run_BTC_optimize(long_list, short_list, startcash=10000000, com=0.0005):
+
+    cerebro = bt.Cerebro()
+    # 导入策略参数寻优
+    cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
+    #cerebro.addstrategy(ATRVegasStrategy)
+
+    df = convert_csv_to_dataframe('../data/backtesting.csv')
+
+    data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2019, 8, 17),
+                                    todate=dt.datetime(2022,12, 24), timeframe=bt.TimeFrame.Days)
+
+    cerebro.adddata(data)
+    # broker设置资金、手续费
+    cerebro.broker.setcash(startcash)
+    cerebro.broker.setcommission(commission=com)
+    # 设置买入设置，策略，数量
+    #cerebro.addsizer(TradeSizer)
+    cerebro.addsizer(bt.sizers.PercentSizer,percents=90)
+    print('期初总资金: %.2f' % cerebro.broker.getvalue())
+
+    # Add pyfolio as analyzer
+    # cerebro.addanalyzer(bt.analyzers.PyFolio)
+
+    #cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
+    #cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
+
+    result = cerebro.run()
+
+    #print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
+    #print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
+
+    #cerebro.plot()
+
+
+def run_BTC_single_plot(startcash=10000000, com=0.0005):
+
+    cerebro = bt.Cerebro()
+    # 导入策略参数寻优
+    #cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
+    cerebro.addstrategy(ATRVegasStrategy)
+
+    df = convert_csv_to_dataframe('../data/backtesting.csv')
+
+    data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2019, 8, 17),
+                                    todate=dt.datetime(2022,12, 24), timeframe=bt.TimeFrame.Days)
+
+    cerebro.adddata(data)
+    # broker设置资金、手续费
+    cerebro.broker.setcash(startcash)
+    cerebro.broker.setcommission(commission=com)
+    # 设置买入设置，策略，数量
+    #cerebro.addsizer(TradeSizer)
+    cerebro.addsizer(bt.sizers.PercentSizer,percents=90)
+    print('期初总资金: %.2f' % cerebro.broker.getvalue())
+
+    # Add pyfolio as analyzer
+    # cerebro.addanalyzer(bt.analyzers.PyFolio)
+
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
+
+    result = cerebro.run()
+
+    print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
+    print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
+
+    cerebro.plot()
+
+
+
+if __name__ == "__main__":
+    #run_BTC_optimize(long_list=[7,14,21,28,35,42,49,56,63,72,81],short_list=range(1,7))
+    run_BTC_single_plot()

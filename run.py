@@ -20,6 +20,10 @@ import matplotlib.pyplot as plt
 from pyecharts.charts import Line, Bar
 from pylab import mpl
 
+import datetime as dt
+
+from StrategyDev.ATRVegasStrategy import ATRVegasStrategy
+
 '''
 Note:
 If you only have 1 year of data and taking into account that the default timeframe for the calculation is years, no calculation can take place. Sharpe needs at least 2 samples for the given timeframe, to calculate the variance.
@@ -53,7 +57,10 @@ def out_result(strategy, data, sizer, startcash=1000000.0, commission=0.001):
     cerebro.adddata(data)
     cerebro.broker.setcash(startcash)
     cerebro.broker.setcommission(commission)
-    cerebro.addsizer(sizer)
+    if(sizer is None):
+        cerebro.addsizer(bt.sizers.PercentSizer, percents=90)
+    else:
+        cerebro.addsizer(sizer)
 
     add_analyzers(cerebro)
 
@@ -289,6 +296,10 @@ def save_df_to_excel(df_ratio_overview, df_total_value, df_gross_leverage, df_lo
     writer.close()
 
 
+def excel_to_dash_app(path):
+    d1,d2,d3,d4=excel_to_performance_data(path)
+    return performance_dt_to_dash(d1,d2,d3,d4)
+
 def excel_to_performance_data(path):
     df_sheet_overview = pd.read_excel(path, sheet_name="df_ratio_overview")
 
@@ -380,25 +391,23 @@ def performance(code, long, short, start, end, startcash, com):
     app = plot_result(TurtleStrategy, data, TradeSizer, startcash, com)
     return app
 
-'''
-def plot_result_py(data, v, title, plot_type='line', zoom=False):
-    att = data.index
-    try:
-        attr = att.strftime('%Y%m%d')
-    except:
-        attr = att
-    if plot_type == 'line':
-        p = Line(title)
-        p.add('', attr, list(data[v].round(2)),
-              is_symbol_show=False, line_width=2,
-              is_datazoom_show=zoom, is_splitline_show=True)
-    else:
-        p = Bar(title)
-        p.add('', attr, [int(i * 1000) / 10 for i in list(data[v])],
-              is_label_show=True,
-              is_datazoom_show=zoom, is_splitline_show=True)
-    return p
-'''
+def convert_csv_to_dataframe(csv_path):
+    dataframe = pd.read_csv(csv_path)
+    dataframe['time'] = pd.to_datetime(dataframe['time'])
+    dataframe.set_index('time', inplace=True)
+    return dataframe
+
+def atr_strategy_performance(startcash, com):
+
+    df = convert_csv_to_dataframe('data/backtesting.csv')
+
+    data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2019, 8, 17),
+                               todate=dt.datetime(2022, 12, 5), timeframe=bt.TimeFrame.Days)
+
+    app = plot_result(ATRVegasStrategy, data, None, startcash, com)
+    return app
+
+
 
 if __name__ == "__main__":
     # long_list = range(20, 70, 5)
@@ -413,4 +422,6 @@ if __name__ == "__main__":
     print(d4)
     app = performance_dt_to_dash(d1,d2,d3,d4)
     app.run_server(debug=False)'''
-    plot_result_py()
+    app = atr_strategy_performance(10000000, 0.0001)
+    app.run_server(debug=False)
+

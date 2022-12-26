@@ -3,7 +3,7 @@ import backtrader as bt
 
 class ChandelierExit(bt.Indicator):
     lines = ('long', 'short')
-    params = (('period', 22), ('multip', 3),)
+    params = (('period', 12), ('multip', 3),)
 
     plot_info = dict(subplot=False)
 
