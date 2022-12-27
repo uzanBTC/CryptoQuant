@@ -69,21 +69,23 @@ def dateTimeConvertor(s):
   ss = datetime.datetime.fromtimestamp(s)
   return ss
 
-def csvTimeUnixToDatetime(csv_path, time_column):
+def csvTimeUnixToDatetime(csv_path,to_file_path, time_column):
   df = pd.read_csv(csv_path)
   dt_list=[]
   for index, row in df.iterrows():
     dt_list.append(dateTimeConvertor(row[time_column]))
 
   df[time_column]=dt_list
-  df.to_csv("data/backtesting.csv", index=False)
+  #df.to_csv("data/backtesting.csv", index=False)
+  df.to_csv(to_file_path,index=False)
   print(df[time_column])
 
 
 if __name__=="__main__":
-    data = MyHLOC(dataname='../data/backtesting.csv')
-    print(data.params)
+    #data = MyHLOC(dataname='../data/backtesting.csv')
+    #print(data.params)
     #print(dateTimeConvertor(1669876800))
-    #csvTimeUnixToDatetime("data/BINANCE_BTCUSDT, 1D.csv","time")
+    #csvTimeUnixToDatetime("data/BINANCE_ETHUSDTPERP, 1D.csv","data/eth_backtesting.csv","time")
+    csvTimeUnixToDatetime("data/BINANCE_ETHUSDTPERP, 240.csv", "data/eth_backtesting_4h.csv", "time")
 
 

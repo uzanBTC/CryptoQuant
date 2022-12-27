@@ -150,7 +150,10 @@ class ATRVegasStrategy(bt.Strategy):
 
 # 由于交易过程中需要对仓位进行动态调整，每次交易一单元股票（不是固定的一股或100股，根据ATR而定），因此交易头寸需要重新设定
 class TradeSizer(bt.Sizer):
-    params = (('stake', 1),)
+    params = (
+            ('stake', 1),
+
+            )
 
     def _getsizing(self, comminfo, cash, data, isbuy):
         # isbuy==True，买场景，这时候需要传入用ATR计算的头寸
@@ -171,14 +174,14 @@ def convert_csv_to_dataframe(csv_path):
     return dataframe
 
 
-def run_BTC_optimize(long_list, short_list, startcash=10000000, com=0.0005):
+def run_BTC_optimize(long_list, short_list, data_path, startcash=10000000, com=0.0005):
 
     cerebro = bt.Cerebro()
     # 导入策略参数寻优
     cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
     #cerebro.addstrategy(ATRVegasStrategy)
 
-    df = convert_csv_to_dataframe('../data/backtesting.csv')
+    df = convert_csv_to_dataframe(data_path)
 
     data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2019, 8, 17),
                                     todate=dt.datetime(2022,12, 24), timeframe=bt.TimeFrame.Days)
@@ -192,28 +195,17 @@ def run_BTC_optimize(long_list, short_list, startcash=10000000, com=0.0005):
     cerebro.addsizer(bt.sizers.PercentSizer,percents=90)
     print('期初总资金: %.2f' % cerebro.broker.getvalue())
 
-    # Add pyfolio as analyzer
-    # cerebro.addanalyzer(bt.analyzers.PyFolio)
-
-    #cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
-    #cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
-
-    result = cerebro.run()
-
-    #print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
-    #print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
-
-    #cerebro.plot()
+    cerebro.run()
 
 
-def run_BTC_single_plot(startcash=10000000, com=0.0005):
+def run_single_plot(data_path, printlog=True ,startcash=10000000, com=0.0005):
 
     cerebro = bt.Cerebro()
     # 导入策略参数寻优
     #cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
-    cerebro.addstrategy(ATRVegasStrategy)
+    cerebro.addstrategy(ATRVegasStrategy, printlog=printlog)
 
-    df = convert_csv_to_dataframe('../data/backtesting.csv')
+    df = convert_csv_to_dataframe(data_path)
 
     data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2019, 8, 17),
                                     todate=dt.datetime(2022,12, 24), timeframe=bt.TimeFrame.Days)
@@ -241,7 +233,68 @@ def run_BTC_single_plot(startcash=10000000, com=0.0005):
     cerebro.plot()
 
 
+def run_single_plot_4h(data_path, printlog=True ,startcash=10000000, com=0.0005):
+
+    cerebro = bt.Cerebro()
+    # 导入策略参数寻优
+    #cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
+    cerebro.addstrategy(ATRVegasStrategy, printlog=printlog)
+
+    df = convert_csv_to_dataframe(data_path)
+
+#2021-05-21 12:00:00
+    #2022-12-26 20:00:00
+    data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2021, 5, 21,12,0,0),
+                                    todate=dt.datetime(2022,12, 26,20,0,0), timeframe=bt.TimeFrame.Minutes)
+
+    cerebro.adddata(data)
+    # broker设置资金、手续费
+    cerebro.broker.setcash(startcash)
+    cerebro.broker.setcommission(commission=com)
+    # 设置买入设置，策略，数量
+    #cerebro.addsizer(TradeSizer)
+    cerebro.addsizer(bt.sizers.PercentSizer,percents=90)
+    print('期初总资金: %.2f' % cerebro.broker.getvalue())
+
+    # Add pyfolio as analyzer
+    # cerebro.addanalyzer(bt.analyzers.PyFolio)
+
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
+
+    result = cerebro.run()
+
+    print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
+    print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
+
+    cerebro.plot()
+
+
+def run_optimize_4h(long_list, short_list, data_path, startcash=10000000, com=0.0005):
+
+    cerebro = bt.Cerebro()
+    # 导入策略参数寻优
+    cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
+    #cerebro.addstrategy(ATRVegasStrategy)
+
+    df = convert_csv_to_dataframe(data_path)
+
+    data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2021, 5, 21, 12, 0, 0),
+                               todate=dt.datetime(2022, 12, 26, 20, 0, 0), timeframe=bt.TimeFrame.Minutes)
+
+    cerebro.adddata(data)
+    # broker设置资金、手续费
+    cerebro.broker.setcash(startcash)
+    cerebro.broker.setcommission(commission=com)
+    # 设置买入设置，策略，数量
+    #cerebro.addsizer(TradeSizer)
+    cerebro.addsizer(bt.sizers.PercentSizer,percents=90)
+    print('期初总资金: %.2f' % cerebro.broker.getvalue())
+
+    cerebro.run()
 
 if __name__ == "__main__":
     #run_BTC_optimize(long_list=[7,14,21,28,35,42,49,56,63,72,81],short_list=range(1,7))
-    run_BTC_single_plot()
+    #run_single_plot("../data/eth_backtesting.csv")
+    #run_single_plot_4h("../data/eth_backtesting_4h.csv")
+    run_optimize_4h(long_list=[7,14,21,28,35,42,49,56,63,72,81],short_list=range(1,7),data_path="../data/eth_backtesting_4h.csv")
