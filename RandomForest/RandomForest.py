@@ -8,27 +8,43 @@ import joblib
 from datetime import datetime
 from sklearn.model_selection import cross_val_score
 import matplotlib.pyplot as plt
+import pandas as pd
 
 class RandomForest():
 
     def __init__(self,strategy_name:str):
         self.strategy_name=strategy_name
+        self.model=None
+        self.best_n_estimators=100
 
-
-    def model_training(self,x_train,y_train,n_estimators=100):
-        random_forest_classifier = RandomForestClassifier(n_estimators=n_estimators, oob_score=True, criterion='gini',
+    def model_generator(self,x_train,y_train):
+        random_forest_classifier = RandomForestClassifier(n_estimators=self.best_n_estimators, oob_score=True, criterion='gini',
                                                           random_state=90)
-        random_forest_classifier.fit(x_train, y_train)
 
+        self.model = random_forest_classifier.fit(x_train, y_train)
 
-    def model_save(self,model):
-        path=self.strategy_name+"-"+datetime.now().strftime("%Y%m%d-%H%M%S")+".joblib"
+    def model_test(self,x_test,y_test):
+        y_pred=self.model_prediction(x_test)
+        print('Correct Prediction (%): ', accuracy_score(y_test, y_pred, normalize=True) * 100.0)
+
+    def model_prediction(self,x):
+        return self.model.predict(x)
+
+    @staticmethod
+    def model_dump(model,path):
         joblib.dump(model,path)
         return path
 
-    def model_load(self,path):
-        rfc=joblib.load(path)
+    @staticmethod
+    def model_load(path):
+        rfc = joblib.load(path)
         return rfc
+
+    def model_save(self,model_name):
+        path = model_name + "-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".joblib"
+        self.model_dump(path)
+
+
 
     def model_training_with_trend(self,data,target,n_estimator_start=0,n_estimator_end=200,step=10,random_state=90):
         '''
@@ -50,6 +66,7 @@ class RandomForest():
             score = cross_val_score(rfc, data, target, cv=10).mean()
             scorel.append(score)
         print(max(scorel), (scorel.index(max(scorel)) * step) + 1)
+        self.best_n_estimators=(scorel.index(max(scorel)) * step) + 1
         plt.figure(figsize=[20, 5])
         plt.plot(range(n_estimator_start+1, n_estimator_end+1, step), scorel)
         plt.show()
