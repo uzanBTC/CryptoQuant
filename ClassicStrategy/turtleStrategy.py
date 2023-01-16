@@ -167,6 +167,3 @@ def run(code, start, end='', startcash=1000000, com=0.0005):
 
 if __name__ == "__main__":
     run('sh', '2010-01-01', '2020-07-17')
-
-
-
