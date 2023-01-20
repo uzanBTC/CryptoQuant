@@ -21,6 +21,7 @@ class StockIndicators():
 
     def get_rsi(self,n = 14) -> pd.DataFrame:
         price_data = self.holc.copy()
+        price_data['change_in_price'] = price_data['close'].diff()
         up_df, down_df = price_data[['change_in_price']], price_data[['change_in_price']]
 
         # For up days, if the change is less than 0 set to 0

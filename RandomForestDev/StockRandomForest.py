@@ -10,7 +10,7 @@ from sklearn.model_selection import cross_val_score
 import matplotlib.pyplot as plt
 import pandas as pd
 
-class RandomForest():
+class StockRandomForest():
 
     def __init__(self,strategy_name:str):
         self.strategy_name=strategy_name
