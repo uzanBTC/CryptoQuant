@@ -6,6 +6,7 @@
 
 import pandas as pd
 
+from RandomForestDev.MACD import MACD
 from RandomForestDev.OBV import OBV
 from RandomForestDev.RSI import RSI
 from RandomForestDev.StockIndicators import StockIndicators
@@ -26,7 +27,8 @@ if __name__=="__main__":
     #rsi=RSI(ohlcv=ohlcv)
     #print(rsi.indicator)
     #william=Williams(ohlcv)
-    obv=OBV(ohlcv)
-    print(obv)
+    #obv=OBV(ohlcv)
+    macd=MACD(ohlcv)
+    print(macd.dif)
 
 
