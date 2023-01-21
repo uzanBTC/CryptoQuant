@@ -4,24 +4,30 @@ import pandas as pd
 
 class MarketIndicator(abc.ABC):
 
-    def __init__(self, holcv: pd.DataFrame):
-        self._indicator = self.calculate_indicator(holcv.copy)
+    def __init__(self, ohlcv: pd.DataFrame):
+        if list(ohlcv.columns) != ['open', 'high', 'low', 'close', 'volume']:
+            raise RuntimeError("Data Frame columns` value must be ['open','high','low','close','volume'] ")
+        self._indicator = self.calculate_indicator(ohlcv.copy())
 
     @abc.abstractmethod
-    def calculate_indicator(self, holcv) -> pd.Series:
+    def calculate_indicator(self, ohlcv) -> pd.Series:
         pass
 
     @property
     def indicator(self):
+        '''
+        only getter available
+        :return: pandas.Series
+        '''
         return self._indicator
 
-    def __getitem__(self, time_key):
+    def __getitem__(self, pos):
         '''
         to make the object iterable
-        :param time_key: time to retrieve the indicator
+        :param pos: pos to retrieve the indicator
         :return:
         '''
-        return self._indicator[time_key]
+        return self._indicator.index[pos], self._indicator[pos]
 
     def __repr__(self) -> str:
         return self._indicator.__repr__()
