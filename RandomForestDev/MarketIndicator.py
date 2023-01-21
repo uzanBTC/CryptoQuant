@@ -7,7 +7,7 @@ class MarketIndicator(abc.ABC):
     def __init__(self, ohlcv: pd.DataFrame):
         if list(ohlcv.columns) != ['open', 'high', 'low', 'close', 'volume']:
             raise RuntimeError("Data Frame columns` value must be ['open','high','low','close','volume'] ")
-        self._indicator = self.calculate_indicator(ohlcv.copy())
+        self._indicator = self.calculate_indicator(ohlcv.copy(deep=True))
 
     @abc.abstractmethod
     def calculate_indicator(self, ohlcv) -> pd.Series:

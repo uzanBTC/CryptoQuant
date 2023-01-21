@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023-01-17 8:00
 # @Author  : Wu Zhenhuan
-# @FileName: test.py
+# @FileName: TestData.py
 # @Software: PyCharm
 
 import pandas as pd
 
+from RandomForestDev.KDJ import KDJ
 from RandomForestDev.MACD import MACD
 from RandomForestDev.OBV import OBV
 from RandomForestDev.RSI import RSI
@@ -23,12 +24,19 @@ if __name__=="__main__":
 
     ohlcv = pd.read_csv("../data/price_data.csv")
 
+    data=ohlcv.copy()
+    del data['open'],data['high'],data['low'],data['close'],data['volume']
 
-    #rsi=RSI(ohlcv=ohlcv)
-    #print(rsi.indicator)
-    #william=Williams(ohlcv)
-    #obv=OBV(ohlcv)
+    rsi=RSI(ohlcv=ohlcv)
+    obv=OBV(ohlcv)
     macd=MACD(ohlcv)
-    print(macd.dif)
+    william=Williams(ohlcv)
+
+    data['rsi']=rsi.indicator
+    data['obv']=obv.indicator
+    data['macd']=macd.dea
+    data['william']=william.indicator
+    data['kdj']=KDJ(ohlcv).indicator
+    print(data)
 
 
