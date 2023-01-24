@@ -3,8 +3,10 @@ from RandomForestDev.Indicators.MarketIndicator import MarketIndicator
 import pandas as pd
 
 class OBV(MarketIndicator):
-    def __init__(self, ohlcv: pd.DataFrame):
+    def __init__(self, ohlcv: pd.DataFrame,term=21):
+        self.term=term
         super().__init__(ohlcv)
+        self._obv_sma=self.obv_sma()
 
     def calculate_indicator(self, ohlcv) -> pd.Series:
         price_data = ohlcv
@@ -31,5 +33,14 @@ class OBV(MarketIndicator):
 
         # Return a panda series.
         return pd.Series(obv_values, index=price_data.index)
+
+    def obv_sma(self):
+        return self.indicator.rolling(window=self.term).mean()
+
+
+    @property
+    def sma(self):
+        return self._obv_sma
+
 
  

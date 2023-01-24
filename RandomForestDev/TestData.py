@@ -7,24 +7,21 @@
 import pandas as pd
 
 from RandomForestDev.Indicators.ATR import ATR
+from RandomForestDev.Indicators.BollingBands import BollingBands
 from RandomForestDev.Indicators.EMA import EMA
 from RandomForestDev.Indicators.KDJ import KDJ
 from RandomForestDev.Indicators.OBV import OBV
 from RandomForestDev.Indicators.RSI import RSI
 from RandomForestDev.Indicators.Williams import Williams
 
-
-
-
-def generateTestData(path:str):
-    ohlcv=pd.read_csv("../data/price_data.csv")
+def generateTestData(path=None):
+    file_path="../data/price_data.csv" if not path else path
+    ohlcv=pd.read_csv(file_path)
     data = ohlcv.copy()
     del data['open'], data['high'], data['low'], data['close'], data['volume']
 
-
-
     '''
-    Data needs to test:
+    Data as feature:
     1. RSI
     2. KD
     3. DIF/DEA
@@ -50,41 +47,29 @@ def generateTestData(path:str):
     william = Williams(ohlcv)
 
     data['rsi'] = rsi.indicator
-    data['obv'] = obv.indicator
+    data['obv_ratio'] = (obv.indicator-obv.sma)/obv.sma
     data['william'] = william.indicator
     data['kdj'] = KDJ(ohlcv).indicator
     data['ema3v8']=ema3v8
     data['ema8v21']=ema8v21
     data['atr_ratio']=atr_ratio
 
-    print(data.head(50))
+    '''
+    Prediction:
+    Bolling
+    shift
+    '''
+    bolling=BollingBands(ohlcv)
 
+    closed_group=ohlcv['close']
+    # 未来7天的价格能不能超过当前的布林带上轨（平均值的两个标准差）
+    closed_group=closed_group.shift(-7) > bolling.up_band
+
+    data['prediction']=closed_group*1
+    data=data.dropna()
+    return data
 
 
 if __name__=="__main__":
-    '''rfc=StockRandomForest("test_strategy")
-    holc=pd.read_csv("../data/price_data.csv")
-    indicators=StockIndicators(holc)
-    rsi=indicators.rsi
-    #obv=indicators.get_obv()
-    print(str(indicators))'''
 
-    '''ohlcv = pd.read_csv("../data/price_data.csv")
-
-    data=ohlcv.copy()
-    del data['open'],data['high'],data['low'],data['close'],data['volume']
-
-    rsi=RSI(ohlcv=ohlcv)
-    obv=OBV(ohlcv)
-    macd=MACD(ohlcv)
-    william=Williams(ohlcv)
-    atr3=ATR(ohlcv,3)
-    atr21 = ATR(ohlcv, 21)
-
-    data['rsi']=rsi.indicator
-    data['obv']=obv.indicator
-    data['macd']=macd.dea
-    data['william']=william.indicator
-    data['kdj']=KDJ(ohlcv).indicator
-    data['atr']=(atr3.indicator-atr21.indicator)/atr21.indicator'''
     generateTestData(None)
