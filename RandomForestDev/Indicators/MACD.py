@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from RandomForestDev.MarketIndicator import MarketIndicator
+from RandomForestDev.Indicators.MarketIndicator import MarketIndicator
 import pandas as pd
 
 class MACD(MarketIndicator):

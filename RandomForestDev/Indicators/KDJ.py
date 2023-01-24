@@ -1,7 +1,7 @@
 
 import pandas as pd
 
-from RandomForestDev.MarketIndicator import MarketIndicator
+from RandomForestDev.Indicators.MarketIndicator import MarketIndicator
 
 
 class KDJ(MarketIndicator):

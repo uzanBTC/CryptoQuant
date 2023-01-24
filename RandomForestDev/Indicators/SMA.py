@@ -1,4 +1,4 @@
-from RandomForestDev.MarketIndicator import MarketIndicator
+from RandomForestDev.Indicators.MarketIndicator import MarketIndicator
 import pandas as pd
 
 
