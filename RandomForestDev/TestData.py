@@ -13,11 +13,13 @@ from RandomForestDev.Indicators.KDJ import KDJ
 from RandomForestDev.Indicators.OBV import OBV
 from RandomForestDev.Indicators.RSI import RSI
 from RandomForestDev.Indicators.Williams import Williams
+from datetime import datetime
 
 def generateTestData(path=None):
-    file_path="../data/price_data.csv" if not path else path
+    file_path=path
     ohlcv=pd.read_csv(file_path)
     data = ohlcv.copy()
+    print(ohlcv)
     del data['open'], data['high'], data['low'], data['close'], data['volume']
 
     '''
@@ -70,6 +72,31 @@ def generateTestData(path=None):
     return data
 
 
+def raw_csv_process(raw_path,target_path):
+    df=pd.read_csv(raw_path)
+    dt_list = []
+    for index, row in df.iterrows():
+        dt_list.append(dateTimeConvertor(row['time']))
+
+    df['time'] = dt_list
+    df.index = pd.to_datetime(df.time)
+    df = df[['open', 'high', 'low', 'close', 'volume']]
+    df.to_csv(target_path, index_label=False)
+
+
+def dateTimeConvertor(s):
+  ss = datetime.fromtimestamp(s)
+  return ss
+
+
 if __name__=="__main__":
 
-    generateTestData(None)
+    #generateTestData("data/price_data_tsla.csv")
+    #raw_csv_process("data/BATS_TSLA, 1D.csv","data/price_data_tsla.csv")
+    #raw_csv_process("data/BINANCE_BTCUSDTPERP, 1D.csv", "data/price_data_btc.csv")
+    #generateTestData("data/price_data_btc.csv")
+    #raw_csv_process("data/BINANCE_BTCUSDTPERP, 1D.csv", "data/price_data_btc.csv")
+    #raw_csv_process("data/BINANCE_BNBUSDTPERP, 1D.csv", "data/price_data_bnb.csv")
+    #generateTestData("data/price_data_bnb.csv")
+    raw_csv_process("data/BINANCE_ETHUSDT, 1D.csv", "data/price_data_eth.csv")
+    generateTestData("data/price_data_eth.csv")
