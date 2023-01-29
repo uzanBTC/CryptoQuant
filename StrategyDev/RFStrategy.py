@@ -1,25 +1,20 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import backtrader as bt
-import joblib
-import matplotlib
-import pandas as pd
-import pytest
-import tushare as ts
-import matplotlib.pyplot as plt
 from pylab import mpl
 import datetime as dt
 import numpy as np
 
 import warnings
 
-from FinanceAnalyzers.CerebroAnalyzers import add_analyzers_to_bt_cerebro, cerebro_result_visualizer
+from StrategyDev.FinanceAnalyzers.CerebroAnalyzers import add_analyzers_to_bt_cerebro, cerebro_result_visualizer
 from StrategyDev.Indicators.OnBalanceVolume import OnBalanceVolume
+from StrategyDev.utils import model_load, convert_csv_to_dataframe
 
 mpl.rcParams['font.sans-serif'] = ['SimHei']
 mpl.rcParams['axes.unicode_minus'] = False
 
-class ATRVegasStrategy(bt.Strategy):
+class RFStrategy(bt.Strategy):
     # 默认参数
     params = (
         ('model',None),
@@ -171,61 +166,3 @@ class TradeSizer(bt.Sizer):
             return position.size
 
 
-def convert_csv_to_dataframe(csv_path):
-    dataframe = pd.read_csv(csv_path)
-    dataframe['time'] = pd.to_datetime(dataframe['time'])
-    dataframe.set_index('time', inplace=True)
-    return dataframe
-
-
-
-def run_single_plot(data_path, printlog=True ,startcash=10000000, com=0.0005):
-
-    cerebro = bt.Cerebro()
-    # 导入策略参数寻优
-    #cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
-    rfc = model_load("rfc_finance_market.joblib")
-    cerebro.addstrategy(ATRVegasStrategy,model=rfc, printlog=printlog)
-    add_analyzers_to_bt_cerebro(cerebro)
-
-    df = convert_csv_to_dataframe(data_path)
-
-    data = bt.feeds.PandasData(dataname=df, fromdate=dt.datetime(2019, 8, 17),
-                                    todate=dt.datetime(2022,12, 24), timeframe=bt.TimeFrame.Days)
-
-    cerebro.adddata(data)
-    # broker设置资金、手续费
-    cerebro.broker.setcash(startcash)
-    cerebro.broker.setcommission(commission=com)
-    # 设置买入设置，策略，数量
-    #cerebro.addsizer(TradeSizer)
-    cerebro.addsizer(bt.sizers.PercentSizer,percents=90)
-    print('期初总资金: %.2f' % cerebro.broker.getvalue())
-
-    # Add pyfolio as analyzer
-    # cerebro.addanalyzer(bt.analyzers.PyFolio)
-
-    #cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
-    #cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
-
-    result = cerebro.run()
-
-   # print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
-    #print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
-
-    cerebro_result_visualizer(result,"results")
-
-    #cerebro.plot()
-
-
-def model_load(path):
-    rfc = joblib.load(path)
-    return rfc
-
-
-if __name__ == "__main__":
-    #run_BTC_optimize(long_list=[7,14,21,28,35,42,49,56,63,72,81],short_list=range(1,7))
-    #run_single_plot("../data/eth_backtesting.csv")
-    #run_single_plot_4h("../data/eth_backtesting_4h.csv")
-    #run_optimize_4h(long_list=[7,14,21,28,35,42,49,56,63,72,81],short_list=range(1,7),data_path="../data/eth_backtesting_4h.csv")
-    run_single_plot("data/price_data_bnb.csv")

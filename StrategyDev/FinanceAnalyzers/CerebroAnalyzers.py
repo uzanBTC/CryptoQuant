@@ -1,15 +1,11 @@
-from datetime import datetime
 import os
 from collections import OrderedDict
 from dash import Dash, html, dcc, dash_table
 
-from FinanceAnalyzers.Performance.TotalValue import TotalValue
+from StrategyDev.FinanceAnalyzers.Performance.TotalValue import TotalValue
 
 import backtrader as bt
 import pandas as pd
-import tushare as ts
-
-import datetime as dt
 
 '''
 add analyzers to cerebro
