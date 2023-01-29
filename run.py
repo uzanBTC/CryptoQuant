@@ -2,23 +2,14 @@
 from datetime import datetime
 import os
 from collections import OrderedDict
-import backtrader as bt
-import pandas as pd
-import plotly.graph_objs as go
 from dash import Dash, html, dcc, dash_table
-from jupyter_plotly_dash import JupyterDash
-from openpyxl import load_workbook
 
 from ClassicStrategy.turtleStrategy import TradeSizer, TurtleStrategy
-from Performance.TotalValue import TotalValue
+from FinanceAnalyzers.Performance import TotalValue
 
 import backtrader as bt
-import matplotlib
 import pandas as pd
 import tushare as ts
-import matplotlib.pyplot as plt
-from pyecharts.charts import Line, Bar
-from pylab import mpl
 
 import datetime as dt
 

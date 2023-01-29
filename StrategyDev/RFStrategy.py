@@ -13,6 +13,7 @@ import numpy as np
 
 import warnings
 
+from FinanceAnalyzers.CerebroAnalyzers import add_analyzers_to_bt_cerebro, cerebro_result_visualizer
 from StrategyDev.Indicators.OnBalanceVolume import OnBalanceVolume
 
 mpl.rcParams['font.sans-serif'] = ['SimHei']
@@ -185,6 +186,7 @@ def run_single_plot(data_path, printlog=True ,startcash=10000000, com=0.0005):
     #cerebro.optstrategy(ATRVegasStrategy, atr_long_period=long_list, atr_short_period=short_list)
     rfc = model_load("rfc_finance_market.joblib")
     cerebro.addstrategy(ATRVegasStrategy,model=rfc, printlog=printlog)
+    add_analyzers_to_bt_cerebro(cerebro)
 
     df = convert_csv_to_dataframe(data_path)
 
@@ -203,15 +205,17 @@ def run_single_plot(data_path, printlog=True ,startcash=10000000, com=0.0005):
     # Add pyfolio as analyzer
     # cerebro.addanalyzer(bt.analyzers.PyFolio)
 
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
+    #cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
+    #cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DrawDown')
 
     result = cerebro.run()
 
-    print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
-    print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
+   # print('夏普比率: ', result[0].analyzers.SharpeRatio.get_analysis()['sharperatio'])
+    #print('最大回撤: ', result[0].analyzers.DrawDown.get_analysis()['max']['drawdown'], "%")
 
-    cerebro.plot()
+    cerebro_result_visualizer(result,"results")
+
+    #cerebro.plot()
 
 
 def model_load(path):
